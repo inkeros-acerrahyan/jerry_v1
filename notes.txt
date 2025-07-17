@@ -1,0 +1,69 @@
+---------------------------------------------------------------------------------------------------------------------------------
+# enable apis
+gcloud services enable cloudfunctions.googleapis.com cloudbuild.googleapis.com cloudscheduler.googleapis.com
+
+# create service account
+gcloud iam service-accounts create jerry-v1-sa \
+--description="Service account for jerry_v1" \
+--display-name="jerry_v1_sa"
+
+# create the function
+gcloud functions deploy print_hello \
+--runtime python312 \
+--trigger-http \
+--entry-point hello \
+--region=us-central1 \
+--no-allow-unauthenticated
+
+# allow the SA to invoke the function
+gcloud functions add-invoker-policy-binding print_hello \
+--region=us-central1 \
+--member=serviceAccount:jerry-v1-sa@ari-dev-463216.iam.gserviceaccount.com
+
+# create the scheduler and attach the SA to it
+gcloud scheduler jobs create http hello_scheduler_job \
+--schedule "* * * * *" \
+--uri https://us-central1-ari-dev-463216.cloudfunctions.net/print_hello \
+--http-method=GET \
+--oidc-service-account-email=jerry-v1-sa@ari-dev-463216.iam.gserviceaccount.com \
+--location=us-central1 \
+--time-zone="America/Toronto"
+---------------------------------------------------------------------------------------------------------------------------------
+
+
+questions...
+- which project is this going to be hosted in?
+    . unknown for production, development on any project is fine
+- how will the bucket be organized?
+    . possible solution
+        - pickup, processing, succeeded, failed directories for each stage of file processing
+- can i move a trained model from one project to another or even just copy it??? - this is for me to figure out
+
+
+requirements...
+- all business related data required from the pdf files
+- a db schema
+ . cpms ID
+ . order ID
+just dump the results into the db as long as the minimum extracted data requirements are met
+
+
+services required
+- bucket
+- db
+- functions
+- scheduler
+- document AI
+
+
+
+scheduler triggers function to proccess all pdf files in bucket
+each file calls document ai to extract the data
+move file from a directory to a processed directory
+using the link of the file and the data extracted - store it in the db
+
+
+
+
+
+
