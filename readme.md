@@ -1,3 +1,5 @@
+GCloud Install
+https://cloud.google.com/sdk/docs/install#deb
 GCloud reference
 https://cloud.google.com/sdk/gcloud/reference
 
@@ -8,7 +10,31 @@ cloudbuild.googleapis.com \
 cloudscheduler.googleapis.com \
 documentai.googleapis.com
 
-# create service account
+
+# AI SETUP AND TRAINING
+# setup document ai
+https://cloud.google.com/document-ai/docs/overview
+# REFER TO THIS RESOURCE FOR HOW TO CREATE LABELS FOR DATA, TRAIN, BUILD, AND DEPLOY THE AI
+
+# training the AI requirements
+# create a bucket for training data
+gcloud storage buckets create gs://jerry_v1_training_data
+
+# upload your training data from your local machine to the bucket
+gcloud storage cp /mnt/c/Users/AriCerrahyan/Downloads/order-summary-telus-training/* gs://jerry_v1_training_data
+
+# attach document ai service account to the storage bucket with the appropriate role
+gcloud storage buckets add-iam-policy-binding gs://jerry_v1_training_data \
+--member="serviceAccount:service-$(gcloud projects describe $(gcloud config get project) --format="value(projectNumber)")@gcp-sa-prod-dai-core.iam.gserviceaccount.com" \
+--role="roles/storage.objectViewer"
+# notes
+# when enabling the document ai api a service account is created in the form of
+# service-{project number}@gcp-sa-prod-dai-core.iam.gserviceaccount.com
+# project number can be retreived through / gcloud projects describe $(gcloud config get project) --format="value(projectNumber)"
+# FROM HERE YOU CAN PROCEED TO LABELING THE DATA, TRAIN, BUILD, AND DEPLOY THE AI
+
+# SETUP CRON JOB FOR THE AI / SCRIPT
+# create service account the schedular will use to make a function call
 gcloud iam service-accounts create jerry-v1-sa \
 --description="Service account for jerry_v1" \
 --display-name="jerry_v1_sa"
@@ -37,33 +63,11 @@ gcloud scheduler jobs create http hello_scheduler_job \
 ---------------------------------------------------------------------------------------------------------------------------------
 
 
-# bucket to upload docs for ai to train with
-gcloud storage buckets create gs://jerry_v1_training_data
-
-gcloud storage mv /mnt/c/Users/AriCerrahyan/Downloads/order-summary-telus-training gs://jerry_v1_training_data
 
 
-# ----------------------------------------------------------------------------------------
-# need to figure out how to get the AI's service account automatically created
-# or manually attach a custom service account to the AI to allow it to use the bucket
-# apparently enabling the document AI creates a service account but yeah no clue what happened
 
-gcloud iam service-accounts create jerry-v1-bucket-getter-sa \
---description="Service account for jerry_v1 to upload documents from bucket for training" \
---display-name="jerry_v1_bucket_getter_sa"
 
-gcloud storage buckets add-iam-policy-binding gs://jerry_v1_training_data \
---member=serviceAccount:jerry-v1-bucket-getter-sa@ari-dev-463216.iam.gserviceaccount.com \
---role=roles/storage.objectViewer
 
-gcloud storage buckets add-iam-policy-binding gs://jerry_v1_training_data \
---member="serviceAccount:service-757764650459@gcp-sa-documentai.iam.gserviceaccount.com" \
---role="roles/storage.objectViewer"
-
-# end of service account issue -----------------------------------------------------------
-
-# setup document ai
-https://cloud.google.com/document-ai/docs/overview
 
 
 
