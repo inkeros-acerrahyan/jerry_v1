@@ -8,7 +8,9 @@ https://cloud.google.com/sdk/gcloud/reference
 gcloud services enable cloudfunctions.googleapis.com \
 cloudbuild.googleapis.com \
 cloudscheduler.googleapis.com \
-documentai.googleapis.com
+documentai.googleapis.com \
+sqladmin.googleapis.com \
+compute.googleapis.com
 
 
 # AI SETUP AND TRAINING
@@ -24,7 +26,7 @@ gcloud storage buckets create gs://jerry_v1_training_data
 gcloud storage cp /mnt/c/Users/AriCerrahyan/Downloads/order-summary-telus-training/* gs://jerry_v1_training_data
 
 # attach document ai service account to the storage bucket with the appropriate role
-gcloud storage buckets add-iam-policy-binding gs://jerry_v1_training_data \
+gcloud storage buckets add-iam-policy-binding gs://jerry_v1_upload \
 --member="serviceAccount:service-$(gcloud projects describe $(gcloud config get project) --format="value(projectNumber)")@gcp-sa-prod-dai-core.iam.gserviceaccount.com" \
 --role="roles/storage.objectViewer"
 # notes
@@ -32,6 +34,10 @@ gcloud storage buckets add-iam-policy-binding gs://jerry_v1_training_data \
 # service-{project number}@gcp-sa-prod-dai-core.iam.gserviceaccount.com
 # project number can be retreived through / gcloud projects describe $(gcloud config get project) --format="value(projectNumber)"
 # FROM HERE YOU CAN PROCEED TO LABELING THE DATA, TRAIN, BUILD, AND DEPLOY THE AI
+
+
+
+00000000
 
 # SETUP CRON JOB FOR THE AI / SCRIPT
 # create service account the schedular will use to make a function call
@@ -63,13 +69,55 @@ gcloud scheduler jobs create http hello_scheduler_job \
 ---------------------------------------------------------------------------------------------------------------------------------
 
 
+<!-- jerry bucket upload -->
+
+<!-- create upload bucket -->
+gcloud storage buckets create gs://jerry_v1_upload --enable-hierarchical-namespace --uniform-bucket-level-access
+
+<!-- list upload bucket -->
+gcloud storage buckets list --filter="name~'jerry'" --format="value(name)"
+
+<!-- delete bucket -->
+gcloud storage rm -r $(gcloud storage buckets list --filter="name~'jerry'" --format="value(storage_url)")
+
+<!-- get all directories from jerry bucket -->
+gcloud storage ls $(gcloud storage buckets list --filter="name~'jerry'" --format="value(storage_url)")
+
+<!-- create all folders for the bucket -->
+BUCKET_URL=$(gcloud storage buckets list --filter="name~'jerry'" --format="value(storage_url)")
+gcloud storage folders create ${BUCKET_URL}processing/ ${BUCKET_URL}succeded/ ${BUCKET_URL}failed/ ${BUCKET_URL}to_process/
 
 
 
 
+<!-- create db instance -->
+gcloud sql instances create jerry-v1-db-instance \
+--database-version=POSTGRES_17 \
+--cpu=1 \
+--memory=4gb \
+--region=us-central1 \
+--edition=enterprise \
+--root-password=gamalziplockshisfartstomarinateinthefridgebeforereleasingthemintheoffice
+
+<!-- delete db instance -->
+gcloud sql instance delete jerry-v1-db-instance
 
 
+<!-- get sql instance name -->
+gcloud sql instances list --filter="name~'jerry'" --format="value(name)"
 
+<!-- create the database -->
+gcloud sql databases create jerry_v1_extracted_db -i=$(gcloud sql instances list --filter="name~'jerry'" --format="value(name)")
+
+<!-- list databses -->
+gcloud sql databases list -i=$(gcloud sql instances list --filter="name~jerry" --format="value(name)")
+
+<!-- install the sql proxy -->
+curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.10.1/cloud-sql-proxy.linux.amd64
+chmod +x cloud-sql-proxy
+sudo mv cloud-sql-proxy /usr/local/bin
+<!-- start the sql proxy -->
+cloud-sql-proxy --port=5435 ari-dev-463216:us-central1:jerry-v1-db-instance
 
 
 
